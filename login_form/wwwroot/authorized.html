@@ -1,0 +1,36 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Авторизований користувач</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 50px;
+        }
+
+        .info-box {
+            padding: 20px;
+            border: 2px solid green;
+            display: inline-block;
+            color: green;
+            font-size: 18px;
+        }
+
+        a {
+            display: block;
+            margin-top: 20px;
+            text-decoration: none;
+            color: blue;
+        }
+    </style>
+</head>
+<body>
+    <div class="info-box">
+        <p>Login: <b>{login}</b></p>
+        <p>Password: <b>{password}</b></p>
+    </div>
+    <a href="/logout">Вийти</a>
+</body>
+</html>

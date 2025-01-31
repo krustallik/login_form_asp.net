@@ -11,8 +11,8 @@
         <form method="post" class="login-form">
             <h2>Login</h2>
             <div class="input-group">
-                <label for="username">Username</label>
-                <input type="text" id="username" name="username" placeholder="Enter your username" required>
+                <label for="login">login</label>
+                <input type="text" id="login" name="login" placeholder="Enter your login" required>
             </div>
             <div class="input-group">
                 <label for="password">Password</label>
@@ -20,7 +20,10 @@
             </div>
             <button type="submit" class="btn">Login</button>
 
-            <h2>{message}</h2>
+            <button type="button" class="btn btn-secondary" onclick="window.location.href='signup.html'">
+                Don't have an account? Sign up
+            </button>
+
         </form>
     </div>
 </body>
