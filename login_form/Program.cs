@@ -2,120 +2,84 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using System.IO;
+using System.Text.Json;
 using System.Web;
+using login_form;
+using login_form.Models;
+using login_form.Services;
+using Microsoft.AspNetCore.Components.Web;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Додає розподілену пам'ять для кешування сесій
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
-    options.IdleTimeout = TimeSpan.FromMinutes(30); // Час життя сесії
+    options.IdleTimeout = TimeSpan.FromMinutes(30); // Час життя сесії - 30 хвилин
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
 });
 
+// Реєструє UserService як синглтон-сервіс
+builder.Services.AddSingleton<UserService>();
+builder.Services.AddSingleton<HtmlRendererService>();
+
 var app = builder.Build();
 
-app.UseStaticFiles();
-app.UseSession();
+app.UseStaticFiles(); // Додає підтримку статичних файлів
+app.UseSession(); // Включає підтримку сесій
+app.UseMyUser();
 
-var rootpath = builder.Environment.ContentRootPath;
-string path = Path.Combine(rootpath, "database.txt");
+var userService = app.Services.GetRequiredService<UserService>();
 
+var htmlRenderer = app.Services.GetRequiredService<HtmlRendererService>();
+
+
+
+// Головна сторінка з перевіркою авторизації
 app.MapGet("/", async context =>
 {
-    // Перевіряємо наявність cookie
-    var isAuthorized = context.Request.Cookies["authorized"] != null;
-
-    if (!isAuthorized)
+    if (!context.Items.ContainsKey("MyUser"))
     {
         context.Response.Redirect("/login");
         return;
     }
 
-    // Отримуємо логін і пароль з сесії
-    string login = context.Session.GetString("login") ?? "Unknown";
-    string password = context.Session.GetString("password") ?? "Unknown";
+    var myUser = (MyUser)context.Items["MyUser"];
 
-    var service = context.RequestServices.GetRequiredService<IWebHostEnvironment>();
-    var wwwRootPath = service.WebRootPath;
-    var filePath = Path.Combine(wwwRootPath, "authorized.html");
+    var html = await htmlRenderer.RenderHtmlAsync("authorized.html", new Dictionary<string, string>
+    {
+        { "{login}", myUser.Name },
+        { "{password}", myUser.PasswordHash }
+    });
 
-    if (File.Exists(filePath))
-    {
-        var html = await File.ReadAllTextAsync(filePath);
-        html = html.Replace("{login}", login);
-        html = html.Replace("{password}", password);
-        context.Response.ContentType = "text/html";
-        await context.Response.WriteAsync(html);
-    }
-    else
-    {
-        context.Response.StatusCode = 404;
-        await context.Response.WriteAsync("File not found.");
-    }
+    context.Response.ContentType = "text/html";
+    await context.Response.WriteAsync(html);
 });
 
+// Відображення сторінки входу
 app.MapGet("/login", async context =>
 {
-    var service = context.RequestServices.GetRequiredService<IWebHostEnvironment>();
-    var wwwRootPath = service.WebRootPath;
-    var filePath = Path.Combine(wwwRootPath, "login.html");
+    var html = await htmlRenderer.RenderHtmlAsync("login.html", new Dictionary<string, string>
+    {
+        { "{message}", "" }
+    });
 
-    if (File.Exists(filePath))
-    {
-        var html = await File.ReadAllTextAsync(filePath);
-        html = html.Replace("{message}", "");
-        context.Response.ContentType = "text/html";
-        await context.Response.WriteAsync(html);
-    }
-    else
-    {
-        context.Response.StatusCode = 404;
-        await context.Response.WriteAsync("File not found.");
-    }
+    context.Response.ContentType = "text/html";
+    await context.Response.WriteAsync(html);
 });
 
+// Обробка авторизації користувача
 app.MapPost("/login", async context =>
 {
     var login = context.Request.Form["login"];
     var password = context.Request.Form["password"];
-    string errorMessage = "Invalid login or password"; // Значення за замовчуванням
+    string errorMessage = "Invalid login or password";
 
-    if (!File.Exists(path))
+    if (userService.VerifyPassword(login, password))
     {
-        File.Create(path).Close();
-    }
-
-    bool isAuthorized = false;
-
-    foreach (var line in File.ReadLines(path))
-    {
-        var parts = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length == 2)
-        {
-            string storedLogin = parts[0];
-            string storedPassword = parts[1];
-
-            if (storedLogin == login && storedPassword == password)
-            {
-                isAuthorized = true;
-                break;
-            }
-            else if (storedLogin == login)
-            {
-                errorMessage = "Password is wrong"; // Якщо логін є, але пароль неправильний
-                break;
-            }
-        }
-    }
-
-    if (isAuthorized)
-    {
-        context.Response.Cookies.Append("authorized", "true"); // Збереження сесії в кукі
-        context.Session.SetString("login", login);
-        context.Session.SetString("password", password);
+        var myUser = new MyUser(login, login, password);
+        context.Session.SetString("user", JsonSerializer.Serialize(myUser));
         context.Response.Redirect("/");
         return;
     }
@@ -127,101 +91,60 @@ app.MapPost("/login", async context =>
     }
 });
 
+// Відображення сторінки реєстрації
 app.MapGet("/signup", async context =>
 {
-    var service = context.RequestServices.GetRequiredService<IWebHostEnvironment>();
-    var wwwRootPath = service.WebRootPath;
-    var filePath = Path.Combine(wwwRootPath, "signup.html");
+    var message = "";
+    var html = await htmlRenderer.RenderHtmlAsync("signup.html", new Dictionary<string, string>
+    {
+        { "{message}", message }
+    });
 
-    if (File.Exists(filePath))
-    {
-        var html = await File.ReadAllTextAsync(filePath);
-        html = html.Replace("{message}", "");
-        context.Response.ContentType = "text/html";
-        await context.Response.WriteAsync(html);
-    }
-    else
-    {
-        context.Response.StatusCode = 404;
-        await context.Response.WriteAsync("File not found.");
-    }
+    context.Response.ContentType = "text/html";
+    await context.Response.WriteAsync(html);
 });
 
+// Обробка реєстрації нового користувача
 app.MapPost("/signup", async context =>
 {
     var login = context.Request.Form["login"];
     var password = context.Request.Form["password"];
-    string errorMessage = "User already exists"; // Повідомлення при наявності користувача
+    string errorMessage = "User already exists";
 
-    if (!File.Exists(path))
+    if (userService.FindByLogin(login) != null)
     {
-        File.Create(path).Close();
-    }
-
-    bool userExists = false;
-
-    foreach (var line in File.ReadLines(path))
-    {
-        var parts = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length == 2 && parts[0] == login)
-        {
-            userExists = true;
-            break;
-        }
-    }
-
-    if (userExists)
-    {
-        errorMessage = "User already exists";
         string encodedMessage = HttpUtility.UrlEncode(errorMessage);
         context.Response.Redirect($"/error?message={encodedMessage}");
         return;
     }
 
-    using (StreamWriter sw = new StreamWriter(path, true))
-    {
-        sw.WriteLine($"{login} {password}");
-    }
+    userService.Add(new MyUser(login, login, password));
 
-    context.Response.Cookies.Append("authorized", "true"); // Збереження сесії в кукі
+    context.Response.Cookies.Append("authorized", "true");
     context.Session.SetString("login", login);
     context.Session.SetString("password", password);
     context.Response.Redirect("/");
 });
 
+// Відображення сторінки помилки
 app.MapGet("/error", async context =>
 {
-    var service = context.RequestServices.GetRequiredService<IWebHostEnvironment>();
-    var wwwRootPath = service.WebRootPath;
-    var filePath = Path.Combine(wwwRootPath, "error.html");
+    string message = context.Request.Query["message"];
 
-    string message = context.Request.Query["message"]; // Отримуємо параметр помилки
+    var html = await htmlRenderer.RenderHtmlAsync("error.html", new Dictionary<string, string>
+    {
+        { "{message}", message }
+    });
 
-    if (File.Exists(filePath))
-    {
-        var html = await File.ReadAllTextAsync(filePath);
-        html = html.Replace("{message}", message);
-        context.Response.ContentType = "text/html";
-        await context.Response.WriteAsync(html);
-    }
-    else
-    {
-        context.Response.StatusCode = 404;
-        await context.Response.WriteAsync("Error page not found.");
-    }
+    context.Response.ContentType = "text/html";
+    await context.Response.WriteAsync(html);
 });
 
+// Обробка виходу користувача
 app.MapGet("/logout", async context =>
 {
-    // Очистити сесію
     context.Session.Clear();
-
-    // Видалити кукі
-    context.Response.Cookies.Delete("authorized");
-
-    // Перенаправити на сторінку входу
     context.Response.Redirect("/login");
 });
-
 
 app.Run();
