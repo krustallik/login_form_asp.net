@@ -1,30 +1,17 @@
-﻿<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="styles.css">
-    <title>Login Form</title>
-</head>
-<body>
-    <div class="form-container">
-        <form method="post" class="login-form">
-            <h2>Login</h2>
-            <div class="input-group">
-                <label for="login">login</label>
-                <input type="text" id="login" name="login" placeholder="Enter your login" required>
+﻿<div class="row justify-content-center">
+    <div class="col-md-6">
+        <h2>Login</h2>
+        <form method="post" action="/login">
+            <div class="form-group">
+                <label for="login">Login</label>
+                <input type="text" class="form-control" id="login" name="login" placeholder="Введіть логін" required>
             </div>
-            <div class="input-group">
+            <div class="form-group">
                 <label for="password">Password</label>
-                <input type="password" id="password" name="password" placeholder="Enter your password" required>
+                <input type="password" class="form-control" id="password" name="password" placeholder="Введіть пароль" required>
             </div>
-            <button type="submit" class="btn">Login</button>
-
-            <button type="button" class="btn btn-secondary" onclick="window.location.href='signup.html'">
-                Don't have an account? Sign up
-            </button>
-
+            <button type="submit" class="btn btn-primary">Login</button>
         </form>
+        <p>Ще не маєте аккаунту? <a href="/signup">Sign up</a></p>
     </div>
-</body>
-</html>
+</div>

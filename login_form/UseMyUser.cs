@@ -1,15 +1,13 @@
 ﻿using login_form.Models;
 using System.Text.Json;
 
-namespace login_form;
-
 public static class UseMyUserExtension
 {
     public static IApplicationBuilder UseMyUser(this IApplicationBuilder builder)
     {
         builder.Use(async (context, next) =>
         {
-            var pagesForAuthorized = new List<string>() { "/", "/logout", "/page2" };
+            var pagesForAuthorized = new List<string>() { "/", "/logout", "/technologies" };
 
             if (!pagesForAuthorized.Contains(context.Request.Path))
             {
@@ -17,7 +15,7 @@ public static class UseMyUserExtension
                 return;
             }
 
-            // Check user in session
+            // Перевірка користувача в сесії
             MyUser myUser = null;
             try
             {

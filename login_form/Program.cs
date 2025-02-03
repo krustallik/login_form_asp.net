@@ -44,13 +44,23 @@ app.MapGet("/", async context =>
         context.Response.Redirect("/login");
         return;
     }
-
     var myUser = (MyUser)context.Items["MyUser"];
 
-    var html = await htmlRenderer.RenderHtmlAsync("authorized.html", new Dictionary<string, string>
+    // Завантаження контенту (фрагмент)
+    var contentFragment = await htmlRenderer.RenderHtmlAsync("authorized.html", new Dictionary<string, string>
     {
         { "{login}", myUser.Name },
         { "{password}", myUser.PasswordHash }
+    });
+
+    // Підставляємо контент у шаблон
+    var html = await htmlRenderer.RenderHtmlAsync("template.html", new Dictionary<string, string>
+    {
+        { "{title}", "Головна" },
+        { "{navbar}", "<li class=\"nav-item\"><a class=\"nav-link\" href=\"/\">authorized</a></li>" +
+                        "<li class=\"nav-item\"><a class=\"nav-link\" href=\"/technologies\">Technologies</a></li>" +
+                        "<li class=\"nav-item\"><a class=\"nav-link\" href=\"/logout\">Logout</a></li>" },
+        { "{content}", contentFragment }
     });
 
     context.Response.ContentType = "text/html";
@@ -60,14 +70,21 @@ app.MapGet("/", async context =>
 // Відображення сторінки входу
 app.MapGet("/login", async context =>
 {
-    var html = await htmlRenderer.RenderHtmlAsync("login.html", new Dictionary<string, string>
+    var contentFragment = await htmlRenderer.RenderHtmlAsync("login.html", new Dictionary<string, string>
     {
         { "{message}", "" }
     });
-
+    var html = await htmlRenderer.RenderHtmlAsync("template.html", new Dictionary<string, string>
+    {
+        { "{title}", "Login" },
+        { "{navbar}", "<li class=\"nav-item\"><a class=\"nav-link\" href=\"/login\">Login</a></li>" +
+                        "<li class=\"nav-item\"><a class=\"nav-link\" href=\"/signup\">Signup</a></li>" },
+        { "{content}", contentFragment }
+    });
     context.Response.ContentType = "text/html";
     await context.Response.WriteAsync(html);
 });
+
 
 // Обробка авторизації користувача
 app.MapPost("/login", async context =>
@@ -94,15 +111,21 @@ app.MapPost("/login", async context =>
 // Відображення сторінки реєстрації
 app.MapGet("/signup", async context =>
 {
-    var message = "";
-    var html = await htmlRenderer.RenderHtmlAsync("signup.html", new Dictionary<string, string>
+    var contentFragment = await htmlRenderer.RenderHtmlAsync("signup.html", new Dictionary<string, string>
     {
-        { "{message}", message }
+        { "{message}", "" }
     });
-
+    var html = await htmlRenderer.RenderHtmlAsync("template.html", new Dictionary<string, string>
+    {
+        { "{title}", "Sign Up" },
+        { "{navbar}", "<li class=\"nav-item\"><a class=\"nav-link\" href=\"/login\">Login</a></li>" +
+                        "<li class=\"nav-item\"><a class=\"nav-link\" href=\"/signup\">Signup</a></li>" },
+        { "{content}", contentFragment }
+    });
     context.Response.ContentType = "text/html";
     await context.Response.WriteAsync(html);
 });
+
 
 // Обробка реєстрації нового користувача
 app.MapPost("/signup", async context =>
@@ -130,15 +153,20 @@ app.MapPost("/signup", async context =>
 app.MapGet("/error", async context =>
 {
     string message = context.Request.Query["message"];
-
-    var html = await htmlRenderer.RenderHtmlAsync("error.html", new Dictionary<string, string>
+    var contentFragment = await htmlRenderer.RenderHtmlAsync("error.html", new Dictionary<string, string>
     {
         { "{message}", message }
     });
-
+    var html = await htmlRenderer.RenderHtmlAsync("template.html", new Dictionary<string, string>
+    {
+        { "{title}", "Error" },
+        { "{navbar}", "<li class=\"nav-item\"><a class=\"nav-link\" href=\"/login\">Login</a></li>" },
+        { "{content}", contentFragment }
+    });
     context.Response.ContentType = "text/html";
     await context.Response.WriteAsync(html);
 });
+
 
 // Обробка виходу користувача
 app.MapGet("/logout", async context =>
@@ -146,5 +174,28 @@ app.MapGet("/logout", async context =>
     context.Session.Clear();
     context.Response.Redirect("/login");
 });
+
+app.MapGet("/technologies", async context =>
+{
+    if (!context.Items.ContainsKey("MyUser"))
+    {
+        context.Response.Redirect("/login");
+        return;
+    }
+    var contentFragment = await htmlRenderer.RenderHtmlAsync("technologies.html", new Dictionary<string, string>());
+
+    var html = await htmlRenderer.RenderHtmlAsync("template.html", new Dictionary<string, string>
+    {
+        { "{title}", "Technologies" },
+        { "{navbar}", "<li class=\"nav-item\"><a class=\"nav-link\" href=\"/\">authorized</a></li>" +
+                        "<li class=\"nav-item\"><a class=\"nav-link\" href=\"/technologies\">Technologies</a></li>" +
+                        "<li class=\"nav-item\"><a class=\"nav-link\" href=\"/logout\">Logout</a></li>" },
+        { "{content}", contentFragment }
+    });
+
+    context.Response.ContentType = "text/html";
+    await context.Response.WriteAsync(html);
+});
+
 
 app.Run();
